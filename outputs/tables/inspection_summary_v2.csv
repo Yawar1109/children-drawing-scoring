@@ -1,0 +1,9 @@
+logical_shape,total_images,flagged_for_review,flagged_percent
+Circle,575,69,12.0
+Diamond,554,25,4.5
+Overlapped Circles,534,42,7.9
+Overlapped Pencils,445,39,8.8
+Square,584,61,10.4
+Star,477,84,17.6
+Triangle,580,15,2.6
+Wave,550,117,21.3

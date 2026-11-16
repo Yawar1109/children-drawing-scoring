@@ -1,0 +1,219 @@
+# ============================================================
+# build_clean_manifest_v2.py
+# Purpose: Corrected, direction-aware flagging rules.
+#          Only flags genuine anomalies (poor drawings, shape
+#          signature violations, empty pages, score contradictions).
+# Author: Yawar Sadiq (mentored step-by-step)
+# ============================================================
+
+import os
+import math
+import numpy as np
+import cv2
+import pandas as pd
+
+# ------------------------------------------------------------
+# 1. Paths
+# ------------------------------------------------------------
+PROJECT_ROOT = r"C:\Users\dell\Documents\ShapeScoringProject"
+METADATA_CSV = os.path.join(PROJECT_ROOT, "outputs", "tables", "dataset_metadata.csv")
+MANIFEST_CSV = os.path.join(PROJECT_ROOT, "outputs", "tables", "clean_manifest_v2.csv")
+SUMMARY_CSV  = os.path.join(PROJECT_ROOT, "outputs", "tables", "inspection_summary_v2.csv")
+SUSPECTS_CSV = os.path.join(PROJECT_ROOT, "outputs", "tables", "suspected_images_v2_PRIVATE.csv")
+
+# ------------------------------------------------------------
+# 2. Feature computation (unchanged)
+# ------------------------------------------------------------
+def measure_image(image_path):
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return None
+
+    img = cv2.resize(img, (128, 128), interpolation=cv2.INTER_AREA)
+    img = img[12:-12, 12:-12]
+
+    img_blur = cv2.GaussianBlur(img, (5, 5), 0)
+    _, binary = cv2.threshold(img_blur, 0, 255,
+                              cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    kernel = np.ones((3, 3), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL,
+                                   cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(contours) == 0:
+        return {"circularity": 0.0, "solidity": 0.0, "extent": 0.0,
+                "num_contours": 0}
+
+    largest = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(largest)
+    perimeter = cv2.arcLength(largest, True)
+
+    if perimeter == 0 or area == 0:
+        return {"circularity": 0.0, "solidity": 0.0, "extent": 0.0,
+                "num_contours": len(contours)}
+
+    circularity = (4 * math.pi * area) / (perimeter ** 2)
+
+    hull = cv2.convexHull(largest)
+    hull_area = cv2.contourArea(hull)
+    solidity = area / hull_area if hull_area > 0 else 0.0
+
+    x, y, w, h = cv2.boundingRect(largest)
+    bbox_area = w * h
+    extent = area / bbox_area if bbox_area > 0 else 0.0
+
+    return {"circularity": circularity, "solidity": solidity,
+            "extent": extent, "num_contours": len(contours)}
+
+# ------------------------------------------------------------
+# 3. Corrected flagging rules
+# ------------------------------------------------------------
+def check_rules(row, p10):
+    """
+    row: dict with 'logical_shape', 'score', 'circularity',
+         'solidity', 'extent', 'num_contours'
+    p10: dict with keys 'circ_p10', 'sol_p10', 'ext_p10' for this shape
+    Returns: list of reason strings (empty if no flag)
+    """
+    reasons = []
+    shape = row["logical_shape"]
+    circ  = row["circularity"]
+    sol   = row["solidity"]
+    ext   = row["extent"]
+    nc    = row["num_contours"]
+    score = row["score"]
+
+    # Rule 1: Very poor drawing (all 3 below 10th percentile)
+    if circ < p10["circ_p10"] and sol < p10["sol_p10"] and ext < p10["ext_p10"]:
+        reasons.append("very_poor_drawing")
+
+    # Rule 2: Shape signature violations
+    if shape == "Wave" and circ > 0.40:
+        reasons.append("wave_signature_violation")
+    if shape == "Star" and sol > 0.75:
+        reasons.append("star_signature_violation")
+    if shape == "Circle" and sol > 0.98 and circ < 0.15:
+        reasons.append("circle_signature_violation")
+
+    # Rule 3: Empty drawing
+    if nc == 0:
+        reasons.append("empty_drawing")
+
+    # Rule 4: Score vs shape contradiction
+    if score == 0:
+        # A score of 0 should not have a perfect shape
+        if shape == "Circle" and circ > 0.85:
+            reasons.append("score0_but_circular")
+        if shape in ("Diamond", "Square", "Triangle") and sol > 0.97:
+            reasons.append("score0_but_solid")
+        if shape == "Star" and sol > 0.90:
+            reasons.append("score0_but_solid_star")
+        if shape == "Wave" and circ > 0.30:
+            reasons.append("score0_but_circular_wave")
+    if score >= 4 and nc == 1:
+        # A high score should not be a nearly-invisible drawing
+        if circ < 0.05 and sol < 0.10:
+            reasons.append("highscore_but_invisible")
+
+    return reasons
+
+# ------------------------------------------------------------
+# 4. Main
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    print("Loading metadata...")
+    df = pd.read_csv(METADATA_CSV).dropna(subset=["score"])
+    df["score"] = df["score"].astype(int)
+    print(f"Total images: {len(df)}")
+
+    # 4.1 Compute features
+    print("Computing clean features for all images (~1 minute)...")
+    rows = []
+    for i, (_, row) in enumerate(df.iterrows(), start=1):
+        if i % 1000 == 0:
+            print(f"  Processed {i}...")
+        feats = measure_image(row["image_path"])
+        if feats is None:
+            continue
+        feats["filename"] = row["filename"]
+        feats["logical_shape"] = row["logical_shape"]
+        feats["score"] = int(row["score"])
+        rows.append(feats)
+
+    per_image = pd.DataFrame(rows)
+    print(f"Feature computation done: {len(per_image)} images")
+
+    # 4.2 Compute 10th percentile per shape (for Rule 1)
+    print("\nComputing 10th percentiles per shape...")
+    p10_rows = []
+    for shape, group in per_image.groupby("logical_shape"):
+        p10_rows.append({
+            "shape": shape,
+            "circ_p10": group["circularity"].quantile(0.10),
+            "sol_p10":  group["solidity"].quantile(0.10),
+            "ext_p10":  group["extent"].quantile(0.10),
+        })
+    p10_df = pd.DataFrame(p10_rows).set_index("shape")
+    print(p10_df.round(4).to_string())
+
+    # 4.3 Apply rules
+    print("\nApplying corrected rules...")
+    all_reasons = []
+    for _, row in per_image.iterrows():
+        p = p10_df.loc[row["logical_shape"]].to_dict()
+        all_reasons.append(check_rules(row.to_dict(), p))
+
+    per_image["flag_reasons_list"] = all_reasons
+    per_image["flag_reasons"] = per_image["flag_reasons_list"].apply(
+        lambda lst: ";".join(lst))
+    per_image["suggested_review"] = per_image["flag_reasons_list"].apply(
+        lambda lst: "yes" if len(lst) > 0 else "no")
+
+    # 4.4 Save manifest
+    manifest_cols = ["filename", "logical_shape", "score",
+                     "circularity", "solidity", "extent", "num_contours",
+                     "suggested_review", "flag_reasons"]
+    manifest = per_image[manifest_cols].round(4)
+    manifest.to_csv(MANIFEST_CSV, index=False)
+    print(f"\nSaved manifest: {MANIFEST_CSV}")
+
+    # 4.5 Summary per shape
+    summary_rows = []
+    for shape, group in manifest.groupby("logical_shape"):
+        n_total = len(group)
+        n_flag = (group["suggested_review"] == "yes").sum()
+        pct = round(100.0 * n_flag / n_total, 1) if n_total > 0 else 0.0
+        summary_rows.append({
+            "logical_shape": shape,
+            "total_images": n_total,
+            "flagged_for_review": int(n_flag),
+            "flagged_percent": pct,
+        })
+    summary = pd.DataFrame(summary_rows).sort_values("logical_shape")
+    summary.to_csv(SUMMARY_CSV, index=False)
+    print(f"Saved summary: {SUMMARY_CSV}")
+    print("\nSummary per shape:")
+    print(summary.to_string(index=False))
+
+    # 4.6 Private suspects list
+    suspects = manifest[manifest["suggested_review"] == "yes"].copy()
+    suspects[["filename", "logical_shape", "score",
+              "flag_reasons"]].to_csv(SUSPECTS_CSV, index=False)
+    print(f"\nSaved suspects (PRIVATE): {SUSPECTS_CSV}")
+    print(f"Total suspects: {len(suspects)}")
+
+    # 4.7 Reason breakdown (helpful diagnostic)
+    print("\nReason breakdown:")
+    from collections import Counter
+    counter = Counter()
+    for lst in per_image["flag_reasons_list"]:
+        for r in lst:
+            counter[r] += 1
+    for reason, count in sorted(counter.items(), key=lambda x: -x[1]):
+        print(f"  {reason}: {count}")
+
+    print("\n" + "=" * 60)
+    print("DONE.")
+    print("=" * 60)

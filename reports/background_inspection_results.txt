@@ -1,0 +1,30 @@
+# Background Inspection Results
+
+**Project:** Automated Scoring of Children's Hand-Drawn Shapes
+
+**Inspection date:** 12 November 2026
+
+**Inspection method:**
+- Randomly selected 10 images from each of the 8 shape folders.
+- Total images sampled: 80.
+- Examined brightness and colour variation in the four image corners.
+- Original dataset images were not modified.
+
+## Results
+
+| Shape | Images sampled | Average corner brightness | Near-white corners | Noticeable variation |
+|---|---:|---:|---:|---:|
+| Circle | 10 | 164.77 | 0 | 10 |
+| Diamond | 10 | 176.75 | 0 | 10 |
+| Overlapped circle | 10 | 167.77 | 0 | 10 |
+| Overlapped pencils | 10 | 171.98 | 0 | 10 |
+| Square | 10 | 177.98 | 0 | 10 |
+| Star | 10 | 164.21 | 0 | 10 |
+| Triangle | 10 | 167.31 | 0 | 10 |
+| Wave | 10 | 173.04 | 0 | 10 |
+
+## Conclusion
+
+The initial corner-based inspection found noticeable pixel variation in all 80 sampled images. None met the script's near-white corner threshold.
+
+These results are preliminary. They do not prove that the image backgrounds are non-white because the corners may contain shadows, pencil marks, or lighting variations. A more comprehensive pixel-brightness inspection is required.

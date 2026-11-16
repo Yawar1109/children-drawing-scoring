@@ -1,0 +1,73 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pth
+*.egg-info/
+.pytest_cache/
+
+# ---- Virtual Environment ----
+.venv/
+venv/
+ENV/
+
+# ---- DATA — DO NOT UPLOAD DATASET ----
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.npz
+
+# ---- Dataset folders ----
+outputs/processed_images/
+outputs/contact_sheets/
+Shapes/
+Shapes.zip
+
+# ---- Trained models ----
+outputs/models/
+*.joblib
+*.keras
+*.h5
+
+# ---- PRIVATE / metadata files ----
+*_PRIVATE.csv
+dataset_metadata.csv
+train_metadata.csv
+test_metadata.csv
+review_decisions.csv
+dataset_anomalies.csv
+background_inspection.csv
+background_quality.csv
+
+# ---- Manifests (contain filenames) ----
+clean_manifest.csv
+clean_manifest_v2.csv
+clean_manifest_v3.csv
+final_clean_manifest.csv
+
+# ---- Feature and split CSVs (contain filenames) ----
+train_clean.csv
+test_clean.csv
+train_features.csv
+test_features.csv
+train_features_clean.csv
+test_features_clean.csv
+train_features_plus.csv
+test_features_plus.csv
+
+# ---- Submission package ----
+Yawar_Sadiq_SourceCode.zip
+Yawar_Sadiq_SourceCode/
+
+# ---- System / IDE ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- Report source files ----
+Yawar_Sadiq_Report.docx

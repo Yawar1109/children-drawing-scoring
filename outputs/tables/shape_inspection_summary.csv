@@ -1,0 +1,9 @@
+logical_shape,total_images,suspicious_count,suspicious_percent
+Circle,575,543,94.4
+Diamond,554,542,97.8
+Overlapped Circles,534,490,91.8
+Overlapped Pencils,445,410,92.1
+Square,584,573,98.1
+Star,477,5,1.0
+Triangle,580,537,92.6
+Wave,550,4,0.7
