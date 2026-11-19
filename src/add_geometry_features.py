@@ -1,10 +1,4 @@
-# ============================================================
-# add_geometry_features.py
-# Purpose: Add 4 more features requested by the professor:
-#          closure, symmetry, num_angles, mean_angle.
-#          Combines them with the 17 existing features = 21 total.
-# Output:  train_features_plus.csv, test_features_plus.csv
-# ============================================================
+=
 
 import os
 import math
@@ -88,9 +82,9 @@ def compute_angles(contour):
         return n, 0.0
     return n, float(np.mean(angles))
 
-# ------------------------------------------------------------
+
 # Full extraction (21 features)
-# ------------------------------------------------------------
+
 def extract_one(image_path):
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:

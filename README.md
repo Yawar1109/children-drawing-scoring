@@ -152,3 +152,12 @@ The dataset is strictly confidential and has not been included in this repositor
 ## License
 
 This work was created for academic evaluation under Prof. Nam (Soonchunhyang University) and should not be redistributed without permission.
+
+
+## Google Colab Notebooks (GPU Execution)
+
+Due to hardware constraints (the local laptop has no dedicated GPU), the Deep Learning models were trained on Google Colab's NVIDIA T4 GPU. The notebooks containing the full training logs and end-to-end pipeline can be found in the root directory:
+
+- `Colab_ResNet_Pipeline.ipynb`: Trains ResNet-50 (86.5%) and builds the End-to-End Pipeline.
+- `Colab_MobileNet_DenseNet.ipynb`: Trains MobileNetV2 (98.47%) and DenseNet121 (98.36%).
+- `Colab_Scoring_CNN_Retrained.ipynb`: Trains a deeper 4-block custom CNN for scoring (98.47%).
